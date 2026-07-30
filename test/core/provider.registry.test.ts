@@ -15,7 +15,14 @@ vi.mock('../../src/providers/openrouter/openrouter.provider', () => {
   return { OpenRouterProvider: OpenRouterProviderMock };
 });
 
-type Provider = 'groq' | 'openrouter' | 'gemini';
+vi.mock('../../src/providers/ollama/ollama.provider', () => {
+  class OllamaProviderMock {
+    public readonly __mock = 'ollama';
+  }
+  return { OllamaProvider: OllamaProviderMock };
+});
+
+type Provider = 'groq' | 'openrouter' | 'gemini' | 'ollama';
 
 
 const mockLoadConfig = vi.fn();
@@ -83,7 +90,7 @@ describe('Provider registry', () => {
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
-      'WARNING: Unsupported GRITCH_PROVIDER="unsupported-provider"; falling back to "groq".'
+      'WARNING: Unsupported GRITCH_PROVIDER="unsupported-provider"; supported providers: groq, openrouter, gemini, ollama. Falling back to "groq".'
     );
   });
 
@@ -148,7 +155,7 @@ describe('Provider registry', () => {
     // Requirement: warning should be emitted exactly once for the unsupported env value.
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
-      'WARNING: Unsupported GRITCH_PROVIDER="not-a-real-provider"; falling back to "groq".'
+      'WARNING: Unsupported GRITCH_PROVIDER="not-a-real-provider"; supported providers: groq, openrouter, gemini, ollama. Falling back to "groq".'
     );
   });
 
@@ -163,6 +170,25 @@ describe('Provider registry', () => {
     const provider = mod.getActiveProvider();
 
     expect((provider as any).__mock).toBe(id);
+  });
+
+  it("returns Ollama provider when GRITCH_PROVIDER='ollama'", async () => {
+    process.env.GRITCH_PROVIDER = 'ollama';
+    mockLoadConfig.mockReturnValue({ provider: 'groq' });
+
+    const mod = await importRegistry();
+
+    expect(mod.getActiveProviderId()).toBe('ollama');
+    expect((mod.getActiveProvider() as any).__mock).toBe('ollama');
+  });
+
+  it("when env is unset, uses config.provider='ollama'", async () => {
+    mockLoadConfig.mockReturnValue({ provider: 'ollama' });
+
+    const mod = await importRegistry();
+
+    expect(mod.getActiveProviderId()).toBe('ollama');
+    expect((mod.getActiveProvider() as any).__mock).toBe('ollama');
   });
 });
 

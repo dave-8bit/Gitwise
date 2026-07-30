@@ -2,11 +2,19 @@ import type { AIProvider } from './ai.provider';
 import { GroqProvider } from '../../providers/groq/groq.provider';
 import { OpenRouterProvider } from '../../providers/openrouter/openrouter.provider';
 import { GeminiProvider } from '../../providers/gemini/gemini.provider';
+import { OllamaProvider } from '../../providers/ollama/ollama.provider';
 import { loadConfig } from '../config/config.service';
 
 
-export type ProviderId = 'groq' | 'openrouter' | 'gemini';
+export type ProviderId = 'groq' | 'openrouter' | 'gemini' | 'ollama';
 
+
+const SUPPORTED_PROVIDERS: readonly ProviderId[] = [
+  'groq',
+  'openrouter',
+  'gemini',
+  'ollama',
+] as const;
 
 const defaultProviderId: ProviderId = 'groq';
 
@@ -15,6 +23,7 @@ const providers: Record<ProviderId, AIProvider> = {
   groq: new GroqProvider(),
   openrouter: new OpenRouterProvider(),
   gemini: new GeminiProvider(),
+  ollama: new OllamaProvider(),
 };
 
 
@@ -25,39 +34,32 @@ export function getActiveProviderId(): ProviderId {
   // 3) hard-coded default: 'groq'
 
   const fromEnv = process.env.GRITCH_PROVIDER;
-  if (fromEnv === 'groq') return 'groq';
-  if (fromEnv === 'openrouter') return 'openrouter';
-  if (fromEnv === 'gemini') return 'gemini';
-
+  if (fromEnv && SUPPORTED_PROVIDERS.includes(fromEnv as ProviderId)) {
+    return fromEnv as ProviderId;
+  }
 
   // If env is explicitly set to an unsupported value, always fall back to groq.
   // Ensure warning is emitted exactly once per env value.
-  if (fromEnv && fromEnv !== 'groq' && fromEnv !== 'openrouter' && fromEnv !== 'gemini') {
-
-
+  if (fromEnv) {
     const g = globalThis as any;
     const warnedKey = '__gritchUnsupportedProviderWarned:' + String(fromEnv);
     if (!g[warnedKey]) {
       g[warnedKey] = true;
       console.warn(
-        `WARNING: Unsupported GRITCH_PROVIDER="${fromEnv}"; falling back to "groq".`
+        `WARNING: Unsupported GRITCH_PROVIDER="${fromEnv}"; supported providers: ${SUPPORTED_PROVIDERS.join(', ')}. Falling back to "${defaultProviderId}".`
       );
     }
     return defaultProviderId;
   }
 
-
-
-
   // NOTE: loadConfig() preserves legacy config behavior.
   // If provider is omitted, defaultConfig.provider will be used.
   // This ensures backward compatibility when no provider is specified.
 
-
   const config = loadConfig();
-  if (config?.provider === 'groq') return 'groq';
-  if (config?.provider === 'openrouter') return 'openrouter';
-  if (config?.provider === 'gemini') return 'gemini';
+  if (config?.provider && SUPPORTED_PROVIDERS.includes(config.provider as ProviderId)) {
+    return config.provider as ProviderId;
+  }
 
   return defaultProviderId;
 }
