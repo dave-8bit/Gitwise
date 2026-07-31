@@ -114,7 +114,7 @@ describe('ConfigService loadConfig()', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('DEPRECATION WARNING'));
   });
 
-  it('correctly merges partial configuration onto defaultConfig', () => {
+it('correctly merges partial configuration onto defaultConfig', () => {
     existsSyncMock.mockImplementation((p) => String(p) === gritchConfigPath);
     readFileSyncMock.mockImplementation(() => JSON.stringify({ conventionalCommits: false }));
 
@@ -122,6 +122,39 @@ describe('ConfigService loadConfig()', () => {
     expect(cfg.conventionalCommits).toBe(false);
     expect(cfg.model).toBe(configService.defaultConfig.model);
     expect(cfg.reviewThreshold).toBe(configService.defaultConfig.reviewThreshold);
+  });
+
+  it('uses GRITCH_MODEL env var over config-file model', () => {
+    process.env.GRITCH_MODEL = 'env-override-model';
+    existsSyncMock.mockImplementation((p) => String(p) === gritchConfigPath);
+    readFileSyncMock.mockImplementation(() =>
+      JSON.stringify({ model: 'config-file-model' })
+    );
+
+    const cfg = configService.loadConfig();
+    expect(cfg.model).toBe('env-override-model');
+  });
+
+  it('uses config-file model when GRITCH_MODEL is unset', () => {
+    delete process.env.GRITCH_MODEL;
+    existsSyncMock.mockImplementation((p) => String(p) === gritchConfigPath);
+    readFileSyncMock.mockImplementation(() =>
+      JSON.stringify({ model: 'config-file-model' })
+    );
+
+    const cfg = configService.loadConfig();
+    expect(cfg.model).toBe('config-file-model');
+  });
+
+  it('ignores whitespace-only GRITCH_MODEL and falls back to config-file model', () => {
+    process.env.GRITCH_MODEL = '   ';
+    existsSyncMock.mockImplementation((p) => String(p) === gritchConfigPath);
+    readFileSyncMock.mockImplementation(() =>
+      JSON.stringify({ model: 'config-file-model' })
+    );
+
+    const cfg = configService.loadConfig();
+    expect(cfg.model).toBe('config-file-model');
   });
 });
 

@@ -451,3 +451,5 @@ MIT License.
 Developed by **Dave Craft**.
 
 If you find Gritch useful, consider starring the repository on GitHub.
+
+<!-- Ollama provider runtime test -->
