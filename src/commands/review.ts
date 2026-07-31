@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { AIService } from '../core/ai/ai.service';
 import { buildAIRequest } from '../core/ai/ai.request-builder';
+import { parseJSONResponse } from '../core/ai/helpers/response';
 import { reviewSystemPrompt, reviewUserPrompt } from '../ai/prompts';
 import { getRepositoryContext } from '../ai/get-repository-context';
 
@@ -62,7 +63,7 @@ export async function reviewCommand(language: string): Promise<void> {
     let result: ReviewResult;
 
     try {
-      result = JSON.parse(raw) as ReviewResult;
+      result = parseJSONResponse<ReviewResult>(raw);
     } catch {
       printError('AI returned an unexpected response format.');
       return;
