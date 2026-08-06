@@ -4,32 +4,20 @@ import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 import { requireApiKey } from '../../core/ai/helpers/api-key';
 import { assembleAIResponse } from '../../core/ai/helpers/response';
 import { throwFetchHttpError } from '../../core/ai/helpers/http-error';
+import {
+  buildChatMessages,
+  buildOpenAICompatibleMetadata,
+  extractOpenAICompatibleContent,
+  type OpenAICompatibleResponse,
+} from '../../core/ai/helpers/openai-compatible';
 
 // OpenRouter follows an OpenAI-compatible chat API.
 // We use the minimal required surface: system+user prompts.
 const apiKey = process.env.OPENROUTER_API_KEY;
 
-type OpenRouterChatCompletionResponse = {
-  model?: string;
-  choices?: Array<{
-    message?: {
-      role?: string;
-      content?: string;
-    };
-    finish_reason?: string;
-  }>;
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-  };
-};
-
-
 export class OpenRouterProvider implements AIProvider {
   async chat(request: AIRequest): Promise<AIResponse> {
     const key = requireApiKey(apiKey, 'OPENROUTER_API_KEY');
-
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -40,10 +28,7 @@ export class OpenRouterProvider implements AIProvider {
       body: JSON.stringify({
         model: request.model ?? 'openai/gpt-3.5-turbo',
         max_tokens: request.maxTokens ?? 1024,
-        messages: [
-          { role: 'system', content: request.systemPrompt },
-          { role: 'user', content: request.userPrompt },
-        ],
+        messages: buildChatMessages(request.systemPrompt, request.userPrompt),
       }),
     });
 
@@ -54,29 +39,10 @@ export class OpenRouterProvider implements AIProvider {
       });
     }
 
-    const json = (await response.json()) as OpenRouterChatCompletionResponse;
-    const content = json.choices?.[0]?.message?.content ?? '';
+    const json = (await response.json()) as OpenAICompatibleResponse;
+    const content = extractOpenAICompatibleContent(json);
+    const metadata = buildOpenAICompatibleMetadata('openrouter', json);
 
-    const metadata = {
-      provider: 'openrouter',
-      model: (json as any).model,
-      finishReason: json.choices?.[0]?.finish_reason,
-      usage: (json as any).usage
-        ? {
-            promptTokens: (json as any).usage.prompt_tokens,
-            completionTokens: (json as any).usage.completion_tokens,
-            totalTokens: (json as any).usage.total_tokens,
-          }
-        : undefined,
-    };
-
-    const filteredMetadata = Object.fromEntries(
-      Object.entries(metadata).filter(([, v]) => v !== undefined)
-    ) as typeof metadata;
-
-    return assembleAIResponse(content, filteredMetadata);
+    return assembleAIResponse(content, metadata);
   }
 }
-
-
-

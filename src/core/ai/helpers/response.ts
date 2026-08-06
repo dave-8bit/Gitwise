@@ -1,7 +1,63 @@
-import type { AIResponse, AIResponseMetadata } from '../ai.types';
+import type { AIResponse, AIResponseMetadata, AIUsage } from '../ai.types';
 
 export function assembleAIResponse(content: string, metadata?: AIResponseMetadata): AIResponse {
   return metadata ? { content, metadata } : { content };
+}
+
+/**
+ * Removes keys whose value is `undefined` from a metadata-like object.
+ * Shared across providers so identical filtering logic lives in one place.
+ */
+export function compactMetadata<T extends object>(metadata: T): T {
+  return Object.fromEntries(
+    Object.entries(metadata).filter(([, v]) => v !== undefined)
+  ) as T;
+}
+
+/**
+ * Normalizes provider-specific token usage into the canonical {@link AIUsage}
+ * shape (`promptTokens` / `completionTokens` / `totalTokens`).
+ *
+ * Handles the token-key variants used by providers:
+ *  - OpenAI-compatible: `prompt_tokens`, `completion_tokens`, `total_tokens`
+ *  - Gemini: `promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`
+ *  - Canonical: `promptTokens`, `completionTokens`, `totalTokens`
+ *
+ * Returns `undefined` when `raw` is missing or no recognized token fields exist.
+ */
+export function normalizeUsage(raw: Record<string, unknown> | undefined): AIUsage | undefined {
+  if (!raw) return undefined;
+
+  const promptTokens = raw.promptTokens ?? raw.prompt_tokens ?? raw.promptTokenCount;
+  const completionTokens = raw.completionTokens ?? raw.completion_tokens ?? raw.candidatesTokenCount;
+  const totalTokens = raw.totalTokens ?? raw.total_tokens ?? raw.totalTokenCount;
+
+  const usage: AIUsage = {};
+  if (typeof promptTokens === 'number') usage.promptTokens = promptTokens;
+  if (typeof completionTokens === 'number') usage.completionTokens = completionTokens;
+  if (typeof totalTokens === 'number') usage.totalTokens = totalTokens;
+
+  return Object.keys(usage).length > 0 ? usage : undefined;
+}
+
+/**
+ * Assembles provider response metadata and strips `undefined` fields.
+ * Always returns an object (the `provider` field is always present).
+ */
+export function buildProviderMetadata(
+  provider: string,
+  params: {
+    model?: string;
+    finishReason?: string;
+    usage?: AIUsage;
+  }
+): AIResponseMetadata {
+  return compactMetadata({
+    provider,
+    model: params.model,
+    finishReason: params.finishReason,
+    usage: params.usage,
+  });
 }
 
 /**

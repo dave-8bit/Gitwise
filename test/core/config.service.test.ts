@@ -23,8 +23,17 @@ describe('ConfigService loadConfig()', () => {
 
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
+  // Preserve the ambient GRITCH_MODEL so tests become environment-independent.
+  // It is restored in afterEach to avoid leaking env state between tests.
+  const originalGritchModel = process.env.GRITCH_MODEL;
+
   beforeEach(() => {
     delete process.env.GRITCH_PROVIDER;
+
+    // Remove GRITCH_MODEL so default/config-file behavior is tested in a
+    // clean state. Tests that intentionally verify env precedence will set
+    // process.env.GRITCH_MODEL explicitly inside the test body.
+    delete process.env.GRITCH_MODEL;
 
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -34,6 +43,14 @@ describe('ConfigService loadConfig()', () => {
 
   afterEach(() => {
     warnSpy.mockRestore();
+
+    // Restore the original GRITCH_MODEL value (if any) to keep the
+    // environment unchanged for subsequent tests/run.
+    if (originalGritchModel === undefined) {
+      delete process.env.GRITCH_MODEL;
+    } else {
+      process.env.GRITCH_MODEL = originalGritchModel;
+    }
   });
 
   it('returns defaultConfig when no config files exist', () => {

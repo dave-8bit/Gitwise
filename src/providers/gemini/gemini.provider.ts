@@ -2,7 +2,7 @@ import type { AIProvider } from '../../core/ai/ai.provider';
 import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 
 import { requireApiKey } from '../../core/ai/helpers/api-key';
-import { assembleAIResponse } from '../../core/ai/helpers/response';
+import { assembleAIResponse, buildProviderMetadata, normalizeUsage } from '../../core/ai/helpers/response';
 import { throwFetchHttpError } from '../../core/ai/helpers/http-error';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -14,6 +14,11 @@ type GeminiChatResponse = {
     };
     finishReason?: string;
   }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
 };
 
 export class GeminiProvider implements AIProvider {
@@ -75,27 +80,12 @@ export class GeminiProvider implements AIProvider {
         .join('')
         ?.trim() ?? '';
 
-    const metadata = {
-      provider: 'gemini',
+    const metadata = buildProviderMetadata('gemini', {
       model: (json as any).model,
       finishReason: json.candidates?.[0]?.finishReason,
-      usage: (json as any).usageMetadata
-        ? {
-            inputTokens: (json as any).usageMetadata.promptTokenCount,
-            outputTokens: (json as any).usageMetadata.candidatesTokenCount,
-            totalTokens: (json as any).usageMetadata.totalTokenCount,
-          }
-        : undefined,
-    };
+      usage: normalizeUsage(json.usageMetadata as Record<string, unknown> | undefined),
+    });
 
-    const filteredMetadata = Object.fromEntries(
-      Object.entries(metadata).filter(([, v]) => v !== undefined)
-    ) as typeof metadata;
-
-    return assembleAIResponse(content, filteredMetadata);
+    return assembleAIResponse(content, metadata);
   }
 }
-
-
-
-
