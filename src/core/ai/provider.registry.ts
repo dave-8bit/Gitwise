@@ -9,7 +9,7 @@ import { loadConfig } from '../config/config.service';
 export type ProviderId = 'groq' | 'openrouter' | 'gemini' | 'ollama';
 
 
-const SUPPORTED_PROVIDERS: readonly ProviderId[] = [
+export const SUPPORTED_PROVIDERS: readonly ProviderId[] = [
   'groq',
   'openrouter',
   'gemini',
@@ -19,7 +19,7 @@ const SUPPORTED_PROVIDERS: readonly ProviderId[] = [
 const defaultProviderId: ProviderId = 'groq';
 
 // Preserve existing runtime behavior by instantiating providers at module load time.
-const providers: Record<ProviderId, AIProvider> = {
+export const providers: Record<ProviderId, AIProvider> = {
   groq: new GroqProvider(),
   openrouter: new OpenRouterProvider(),
   gemini: new GeminiProvider(),
@@ -66,6 +66,10 @@ export function getActiveProviderId(): ProviderId {
 
 export function getActiveProvider(): AIProvider {
   const id = getActiveProviderId();
+  return providers[id] ?? providers[defaultProviderId];
+}
+
+export function getProviderById(id: ProviderId): AIProvider {
   return providers[id] ?? providers[defaultProviderId];
 }
 

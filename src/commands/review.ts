@@ -48,7 +48,7 @@ export async function reviewCommand(language: string): Promise<void> {
     const repoContext = getRepositoryContext();
 
     spinner.text = 'Reviewing your code with AI…';
-    const response = await AIService.chat(
+    const response = await AIService.chatWithFallback(
       buildAIRequest({
         systemPrompt: reviewSystemPrompt(),
         userPrompt: reviewUserPrompt(trimDiff(diff), language, repoContext),
@@ -58,7 +58,6 @@ export async function reviewCommand(language: string): Promise<void> {
     const raw = response.content;
 
     spinner.succeed();
-
 
     let result: ReviewResult;
 
@@ -91,8 +90,8 @@ export async function reviewCommand(language: string): Promise<void> {
       printWarning('Review did not pass. Please address critical issues before pushing.');
     }
   } catch (err) {
+    spinner.stop();
     const message = err instanceof Error ? err.message : String(err);
     printError(message);
   }
 }
-

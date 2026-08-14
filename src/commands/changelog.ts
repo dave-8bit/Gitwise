@@ -39,7 +39,7 @@ export async function changelogCommand(from: string, to: string): Promise<void> 
     }
 
     spinner.text = 'Generating changelog with AI…';
-    const response = await AIService.chat(
+    const response = await AIService.chatWithFallback(
       buildAIRequest({
         systemPrompt: changelogSystemPrompt(),
         userPrompt: changelogUserPrompt(commits, from, to),

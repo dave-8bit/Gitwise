@@ -46,7 +46,7 @@ export async function commitCommand(): Promise<void> {
     const repoContext = getRepositoryContext();
 
     spinner.text = 'Generating commit message with AI…';
-    const response = await AIService.chat(
+    const response = await AIService.chatWithFallback(
       buildAIRequest({
         systemPrompt: commitSystemPrompt(),
         userPrompt: commitUserPrompt(trimDiff(diff), repoContext),

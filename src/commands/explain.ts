@@ -34,7 +34,7 @@ export async function explainCommand(hash: string): Promise<void> {
     const repoContext = getRepositoryContext();
 
     spinner.text = 'Analysing commit with AI…';
-    const response = await AIService.chat(
+    const response = await AIService.chatWithFallback(
       buildAIRequest({
         systemPrompt: explainSystemPrompt(),
         userPrompt: explainUserPrompt(diff, hash, repoContext),
