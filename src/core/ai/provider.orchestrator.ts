@@ -1,6 +1,7 @@
 import type { AIProvider } from './ai.provider';
 import type { AIRequest, AIResponse } from './ai.types';
 import { getActiveProviderId, getProviderById, type ProviderId, SUPPORTED_PROVIDERS } from './provider.registry';
+import { ProviderError } from './helpers/provider-error';
 
 /**
  * Error classification for fallback decisions.
@@ -8,6 +9,12 @@ import { getActiveProviderId, getProviderById, type ProviderId, SUPPORTED_PROVID
  * and errors that should not trigger blind retries.
  */
 function isFallbackWorthyError(error: unknown): boolean {
+  // Check structured ProviderError first (most reliable)
+  if (error instanceof ProviderError) {
+    return error.isRetriable;
+  }
+
+  // Fall back to string pattern matching for backward compatibility
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     

@@ -10,39 +10,65 @@ import {
   extractOpenAICompatibleContent,
   type OpenAICompatibleResponse,
 } from '../../core/ai/helpers/openai-compatible';
+import { createNetworkError, createTimeoutError } from '../../core/ai/helpers/provider-error';
 
 // OpenRouter follows an OpenAI-compatible chat API.
 // We use the minimal required surface: system+user prompts.
-const apiKey = process.env.OPENROUTER_API_KEY;
-
 export class OpenRouterProvider implements AIProvider {
   async chat(request: AIRequest): Promise<AIResponse> {
-    const key = requireApiKey(apiKey, 'OPENROUTER_API_KEY');
+    const key = requireApiKey(process.env.OPENROUTER_API_KEY, 'OPENROUTER_API_KEY', 'openrouter');
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: request.model ?? 'openai/gpt-3.5-turbo',
-        max_tokens: request.maxTokens ?? 1024,
-        messages: buildChatMessages(request.systemPrompt, request.userPrompt),
-      }),
-    });
-
-    if (!response.ok) {
-      await throwFetchHttpError({
-        response,
-        prefix: 'OpenRouter request failed',
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: request.model ?? 'openai/gpt-3.5-turbo',
+          max_tokens: request.maxTokens ?? 1024,
+          messages: buildChatMessages(request.systemPrompt, request.userPrompt),
+        }),
       });
+
+      if (!response.ok) {
+        await throwFetchHttpError({
+          response,
+          prefix: 'OpenRouter request failed',
+          provider: 'openrouter',
+        });
+      }
+
+      const json = (await response.json()) as OpenAICompatibleResponse;
+      const content = extractOpenAICompatibleContent(json);
+      const metadata = buildOpenAICompatibleMetadata('openrouter', json);
+
+      return assembleAIResponse(content, metadata);
+    } catch (error) {
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+
+        if (message.includes('timed out') || message.includes('timeout') || message.includes('abort')) {
+          throw createTimeoutError({
+            provider: 'openrouter',
+            message: error.message,
+          });
+        }
+
+        if (message.includes('econnrefused') ||
+            message.includes('enotfound') ||
+            message.includes('network') ||
+            message.includes('fetch failed')) {
+          throw createNetworkError({
+            provider: 'openrouter',
+            message: error.message,
+            originalError: error,
+          });
+        }
+      }
+
+      throw error;
     }
-
-    const json = (await response.json()) as OpenAICompatibleResponse;
-    const content = extractOpenAICompatibleContent(json);
-    const metadata = buildOpenAICompatibleMetadata('openrouter', json);
-
-    return assembleAIResponse(content, metadata);
   }
 }

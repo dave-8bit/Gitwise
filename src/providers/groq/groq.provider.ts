@@ -11,28 +11,99 @@ import {
   extractOpenAICompatibleContent,
   type OpenAICompatibleResponse,
 } from '../../core/ai/helpers/openai-compatible';
-
-const apiKey = process.env.GROQ_API_KEY;
-
-const groq = new Groq({
-  apiKey: apiKey ?? '',
-});
+import {
+  createNetworkError,
+  createTimeoutError,
+  ProviderError,
+} from '../../core/ai/helpers/provider-error';
 
 export class GroqProvider implements AIProvider {
   async chat(request: AIRequest): Promise<AIResponse> {
+    const apiKey = process.env.GROQ_API_KEY;
+    const groq = new Groq({
+      apiKey: apiKey ?? '',
+    });
+
     // Fail fast before making any API request.
-    requireApiKey(apiKey, 'GROQ_API_KEY');
+    requireApiKey(apiKey, 'GROQ_API_KEY', 'groq');
 
-    const completion = (await groq.chat.completions.create({
-      model: request.model ?? 'llama-3.3-70b-versatile',
+    try {
+      const completion = (await groq.chat.completions.create({
+        model: request.model ?? 'llama-3.3-70b-versatile',
 
-      max_tokens: request.maxTokens ?? 1024,
-      messages: buildChatMessages(request.systemPrompt, request.userPrompt),
-    })) as OpenAICompatibleResponse;
+        max_tokens: request.maxTokens ?? 1024,
+        messages: buildChatMessages(request.systemPrompt, request.userPrompt),
+      })) as OpenAICompatibleResponse;
 
-    const content = extractOpenAICompatibleContent(completion);
-    const metadata = buildOpenAICompatibleMetadata('groq', completion);
+      const content = extractOpenAICompatibleContent(completion);
+      const metadata = buildOpenAICompatibleMetadata('groq', completion);
 
-    return assembleAIResponse(content, metadata);
+      return assembleAIResponse(content, metadata);
+    } catch (error) {
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+
+        if (message.includes('401') || message.includes('403') || message.includes('unauthorized') || message.includes('forbidden')) {
+          throw new ProviderError({
+            provider: 'groq',
+            message: error.message,
+            errorCode: 'auth',
+            isRetriable: false,
+            originalError: error,
+          });
+        }
+
+        if (message.includes('400') || message.includes('bad request') || message.includes('invalid')) {
+          throw new ProviderError({
+            provider: 'groq',
+            message: error.message,
+            errorCode: 'config',
+            isRetriable: false,
+            originalError: error,
+          });
+        }
+
+        if (message.includes('timed out') || message.includes('timeout') || message.includes('abort')) {
+          throw createTimeoutError({
+            provider: 'groq',
+            message: error.message,
+          });
+        }
+
+        if (message.includes('429') || message.includes('too many requests') || message.includes('rate limit')) {
+          throw new ProviderError({
+            provider: 'groq',
+            message: error.message,
+            errorCode: 'ratelimit',
+            isRetriable: true,
+            originalError: error,
+          });
+        }
+
+        if (message.includes('500') || message.includes('502') || message.includes('503') || message.includes('504') || message.includes('service unavailable')) {
+          throw new ProviderError({
+            provider: 'groq',
+            message: error.message,
+            errorCode: 'server',
+            isRetriable: true,
+            originalError: error,
+          });
+        }
+
+        if (message.includes('econnrefused') ||
+            message.includes('enotfound') ||
+            message.includes('etimedout') ||
+            message.includes('network') ||
+            message.includes('fetch failed')) {
+          throw createNetworkError({
+            provider: 'groq',
+            message: error.message,
+            originalError: error,
+          });
+        }
+      }
+
+      throw error;
+    }
   }
 }
