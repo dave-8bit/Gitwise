@@ -18,7 +18,7 @@ import {
   printWarning,
 } from '../utils/display';
 
-const { execSync } = childProcess;
+const { execFileSync } = childProcess;
 
 export async function commitCommand(): Promise<void> {
   try {
@@ -68,7 +68,7 @@ export async function commitCommand(): Promise<void> {
 
     if (useThis) {
       try {
-        execSync(`git commit -m "${message}"`, { stdio: 'inherit' });
+        execFileSync('git', ['commit', '-m', message], { stdio: 'inherit' });
         printSuccess('Commit created successfully!');
       } catch {
         printError('Failed to create commit.');
