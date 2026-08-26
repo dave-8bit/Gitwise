@@ -4,6 +4,14 @@ import { chatWithFallback } from '../../../src/core/ai/provider.orchestrator';
 import type { AIProvider } from '../../../src/core/ai/ai.provider';
 import type { AIRequest, AIResponse } from '../../../src/core/ai/ai.types';
 import type { ProviderId } from '../../../src/core/ai/provider.registry';
+import type { RetryOptions } from '../../../src/core/ai/helpers/retry';
+
+// These tests verify FALLBACK semantics (one attempt per provider before
+// moving on). Retry is deliberately disabled (maxAttempts=1) so provider
+// call counts remain exactly one per provider. Retry-specific integration is
+// covered separately in test/core/ai/helpers/retry.test.ts and in the
+// orchestrator retry-integration tests.
+const noRetryOptions: RetryOptions = { maxAttempts: 1 };
 
 // Mock provider registry
 vi.mock('../../../src/core/ai/provider.registry', () => {
@@ -38,15 +46,19 @@ describe('Provider orchestrator', () => {
     // Reset all provider mocks
     mockProviders.groq = {
       chat: vi.fn(),
+      health: vi.fn(),
     } as AIProvider;
     mockProviders.openrouter = {
       chat: vi.fn(),
+      health: vi.fn(),
     } as AIProvider;
     mockProviders.gemini = {
       chat: vi.fn(),
+      health: vi.fn(),
     } as AIProvider;
     mockProviders.ollama = {
       chat: vi.fn(),
+      health: vi.fn(),
     } as AIProvider;
   });
 
@@ -58,7 +70,7 @@ describe('Provider orchestrator', () => {
     mockGetActiveProviderId.mockReturnValue('groq');
     (mockProviders.groq.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -76,7 +88,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -98,7 +110,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -125,7 +137,7 @@ describe('Provider orchestrator', () => {
       new Error('503 Service Unavailable')
     );
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow(
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow(
       'All AI providers failed'
     );
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -141,7 +153,7 @@ describe('Provider orchestrator', () => {
     );
     (mockProviders.openrouter.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow('401 Unauthorized');
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow('401 Unauthorized');
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
     expect(mockProviders.openrouter.chat).not.toHaveBeenCalled();
   });
@@ -153,7 +165,7 @@ describe('Provider orchestrator', () => {
     );
     (mockProviders.groq.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow('403 Forbidden');
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow('403 Forbidden');
     expect(mockProviders.gemini.chat).toHaveBeenCalledTimes(1);
     expect(mockProviders.groq.chat).not.toHaveBeenCalled();
   });
@@ -165,7 +177,7 @@ describe('Provider orchestrator', () => {
     );
     (mockProviders.groq.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow('Missing GEMINI_API_KEY');
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow('Missing GEMINI_API_KEY');
     expect(mockProviders.ollama.chat).toHaveBeenCalledTimes(1);
     expect(mockProviders.groq.chat).not.toHaveBeenCalled();
   });
@@ -177,7 +189,7 @@ describe('Provider orchestrator', () => {
     );
     (mockProviders.groq.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow('400 Bad Request');
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow('400 Bad Request');
     expect(mockProviders.openrouter.chat).toHaveBeenCalledTimes(1);
     expect(mockProviders.groq.chat).not.toHaveBeenCalled();
     expect(mockProviders.gemini.chat).not.toHaveBeenCalled();
@@ -192,7 +204,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -211,7 +223,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.gemini.chat).toHaveBeenCalledTimes(1);
@@ -237,7 +249,7 @@ describe('Provider orchestrator', () => {
       new Error('Request timed out')
     );
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow();
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow();
 
     // Each provider attempted exactly once
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -267,7 +279,7 @@ describe('Provider orchestrator', () => {
       
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       
-      const result = await chatWithFallback(mockRequest);
+      const result = await chatWithFallback(mockRequest, noRetryOptions);
       
       expect(result).toEqual(mockSuccessResponse);
       expect(mockProviders[preferred].chat).toHaveBeenCalledTimes(1);
@@ -286,7 +298,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -305,7 +317,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.ollama.chat).toHaveBeenCalledTimes(1);
@@ -324,7 +336,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.gemini.chat).toHaveBeenCalledTimes(1);
@@ -340,7 +352,7 @@ describe('Provider orchestrator', () => {
     mockGetActiveProviderId.mockReturnValue('groq');
     (mockProviders.groq.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.groq.chat).toHaveBeenCalledTimes(1);
@@ -362,13 +374,13 @@ describe('Provider orchestrator', () => {
       new Error('unavailable')
     );
 
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow(
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow(
       /All AI providers failed/
     );
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow(
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow(
       /groq: timeout/
     );
-    await expect(chatWithFallback(mockRequest)).rejects.toThrow(
+    await expect(chatWithFallback(mockRequest, noRetryOptions)).rejects.toThrow(
       /openrouter: network/
     );
   });
@@ -387,7 +399,7 @@ describe('Provider orchestrator', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await chatWithFallback(mockRequest);
+    const result = await chatWithFallback(mockRequest, noRetryOptions);
 
     expect(result).toEqual(mockSuccessResponse);
     expect(mockProviders.ollama.chat).toHaveBeenCalledTimes(1);
@@ -407,7 +419,7 @@ describe('Provider orchestrator', () => {
     );
     (mockProviders.gemini.chat as ReturnType<typeof vi.fn>).mockResolvedValue(mockSuccessResponse);
 
-    await chatWithFallback(mockRequest);
+    await chatWithFallback(mockRequest, noRetryOptions);
 
     // Verify the same request object was passed to each provider
     expect(mockProviders.groq.chat).toHaveBeenCalledWith(mockRequest);

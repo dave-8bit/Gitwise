@@ -1,76 +1,39 @@
 import type { AIProvider } from './ai.provider';
 import type { AIRequest, AIResponse } from './ai.types';
 import { getActiveProviderId, getProviderById, type ProviderId, SUPPORTED_PROVIDERS } from './provider.registry';
-import { ProviderError } from './helpers/provider-error';
+import { withRetry, isRetriableError, type RetryOptions } from './helpers/retry';
 
 /**
  * Error classification for fallback decisions.
- * Distinguishes between errors that justify provider fallback
- * and errors that should not trigger blind retries.
+ *
+ * Delegates to the shared {@link isRetriableError} so retry and fallback
+ * share a single classification source of truth.  Retryable (transient)
+ * errors are fallback-worthy; permanent errors (auth, config, missing key)
+ * are not.
  */
 function isFallbackWorthyError(error: unknown): boolean {
-  // Check structured ProviderError first (most reliable)
-  if (error instanceof ProviderError) {
-    return error.isRetriable;
-  }
-
-  // Fall back to string pattern matching for backward compatibility
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    
-    // Timeout errors
-    if (message.includes('timed out') || message.includes('abort')) {
-      return true;
-    }
-    
-    // Network/transport errors
-    if (message.includes('econnrefused') || 
-        message.includes('enotfound') ||
-        message.includes('etimedout') ||
-        message.includes('network') ||
-        message.includes('fetch failed')) {
-      return true;
-    }
-    
-    // HTTP 429 (rate limiting) - fallback-worthy
-    if (message.includes('429')) {
-      return true;
-    }
-    
-    // HTTP 5xx (server errors) - fallback-worthy
-    if (message.includes('500') || 
-        message.includes('502') || 
-        message.includes('503') || 
-        message.includes('504')) {
-      return true;
-    }
-    
-    // HTTP 401/403 (auth errors) - NOT fallback-worthy, provider unavailable
-    if (message.includes('401') || message.includes('403')) {
-      return false;
-    }
-    
-    // HTTP 400 (bad request) - NOT fallback-worthy, likely config issue
-    if (message.includes('400')) {
-      return false;
-    }
-    
-    // Missing API key - provider unavailable
-    if (message.includes('missing') && message.includes('api_key')) {
-      return false;
-    }
-  }
-  
-  // Unknown errors default to fallback-worthy for resilience
-  return true;
+  return isRetriableError(error);
 }
 
 /**
- * Orchestrates provider attempts with fallback.
- * Respects the configured preferred provider but falls back
- * to other viable providers on runtime failures.
+ * Orchestrates provider attempts with bounded retry and fallback.
+ *
+ * Flow for each provider in priority order:
+ *   1. Retry the same provider up to `maxAttempts` times on transient errors
+ *      (network, timeout, 429, 5xx).
+ *   2. If retries are exhausted, fall back to the next viable provider.
+ *
+ * Non-retryable errors (missing API key, auth, 4xx config) throw immediately
+ * without retry or fallback.
+ *
+ * Retry and fallback share a single classification
+ * ({@link isRetriableError}) so the two mechanisms can never disagree about
+ * whether a failure is transient.
  */
-export async function chatWithFallback(request: AIRequest): Promise<AIResponse> {
+export async function chatWithFallback(
+  request: AIRequest,
+  retryOptions?: RetryOptions
+): Promise<AIResponse> {
   const preferredProviderId = getActiveProviderId();
   const attempted = new Set<ProviderId>();
   const errors: Array<{ provider: ProviderId; error: Error }> = [];
@@ -95,7 +58,10 @@ export async function chatWithFallback(request: AIRequest): Promise<AIResponse> 
     const provider = getProviderById(providerId);
 
     try {
-      const response = await provider.chat(request);
+      const response = await withRetry(
+        () => provider.chat(request),
+        retryOptions,
+      );
 
       // If this isn't the preferred provider, notify user
       if (providerId !== preferredProviderId) {
@@ -114,12 +80,12 @@ export async function chatWithFallback(request: AIRequest): Promise<AIResponse> 
       }
     }
   }
-  
+
   // All providers failed - construct meaningful error
   const errorSummary = errors
     .map(({ provider, error }) => `${provider}: ${error.message}`)
     .join('; ');
-  
+
   throw new Error(
     `All AI providers failed. Attempted: ${Array.from(attempted).join(', ')}. ` +
     `Errors: ${errorSummary}`
