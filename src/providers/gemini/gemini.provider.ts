@@ -5,6 +5,12 @@ import { requireApiKey } from '../../core/ai/helpers/api-key';
 import { assembleAIResponse, buildProviderMetadata, normalizeUsage } from '../../core/ai/helpers/response';
 import { throwFetchHttpError } from '../../core/ai/helpers/http-error';
 import { createNetworkError, createTimeoutError } from '../../core/ai/helpers/provider-error';
+import { withResponseTiming } from '../../core/ai/helpers/response-timing';
+import {
+  missingApiKeyHealthResult,
+  probeProviderHealth,
+  type ProviderHealthResult,
+} from '../../core/ai/helpers/provider-health';
 
 type GeminiChatResponse = {
   candidates?: Array<{
@@ -41,52 +47,54 @@ export class GeminiProvider implements AIProvider {
     )}:generateContent?key=${encodeURIComponent(key)}`;
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          systemInstruction: request.systemPrompt
-            ? { parts: [{ text: request.systemPrompt }] }
-            : undefined,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: request.userPrompt }],
-            },
-          ],
-          generationConfig: maxOutputTokens
-            ? {
-                maxOutputTokens,
-              }
-            : undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        await throwFetchHttpError({
-          response,
-          prefix: 'Gemini request failed',
-          provider: 'gemini',
+      return await withResponseTiming(async () => {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemInstruction: request.systemPrompt
+              ? { parts: [{ text: request.systemPrompt }] }
+              : undefined,
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: request.userPrompt }],
+              },
+            ],
+            generationConfig: maxOutputTokens
+              ? {
+                  maxOutputTokens,
+                }
+              : undefined,
+          }),
         });
-      }
 
-      const json = (await response.json()) as GeminiChatResponse;
+        if (!response.ok) {
+          await throwFetchHttpError({
+            response,
+            prefix: 'Gemini request failed',
+            provider: 'gemini',
+          });
+        }
 
-      const content =
-        json.candidates?.[0]?.content?.parts
-          ?.map((p) => p.text ?? '')
-          .join('')
-          ?.trim() ?? '';
+        const json = (await response.json()) as GeminiChatResponse;
 
-      const metadata = buildProviderMetadata('gemini', {
-        model: (json as any).model,
-        finishReason: json.candidates?.[0]?.finishReason,
-        usage: normalizeUsage(json.usageMetadata as Record<string, unknown> | undefined),
+        const content =
+          json.candidates?.[0]?.content?.parts
+            ?.map((p) => p.text ?? '')
+            .join('')
+            ?.trim() ?? '';
+
+        const metadata = buildProviderMetadata('gemini', {
+          model: (json as any).model,
+          finishReason: json.candidates?.[0]?.finishReason,
+          usage: normalizeUsage(json.usageMetadata as Record<string, unknown> | undefined),
+        });
+
+        return assembleAIResponse(content, metadata);
       });
-
-      return assembleAIResponse(content, metadata);
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message.toLowerCase();
@@ -112,5 +120,22 @@ export class GeminiProvider implements AIProvider {
 
       throw error;
     }
+  }
+
+  async health(): Promise<ProviderHealthResult> {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      return missingApiKeyHealthResult('gemini', 'GEMINI_API_KEY');
+    }
+
+    // Gemini passes the API key as a query parameter, not an auth header.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
+      key
+    )}`;
+
+    return probeProviderHealth({
+      provider: 'gemini',
+      url,
+    });
   }
 }

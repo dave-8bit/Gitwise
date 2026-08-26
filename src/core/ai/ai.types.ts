@@ -27,6 +27,12 @@ export interface AIResponseMetadata {
   model?: string;
   finishReason?: string;
   usage?: AIUsage;
+  /**
+   * Elapsed wall-clock time (milliseconds) of the provider request lifecycle,
+   * measured with a monotonic/high-resolution timer. Present on successful
+   * provider responses. Non-negative.
+   */
+  responseTimeMs?: number;
 }
 
 export interface AIResponse {

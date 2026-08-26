@@ -16,6 +16,16 @@ import {
   createTimeoutError,
   ProviderError,
 } from '../../core/ai/helpers/provider-error';
+import { withResponseTiming } from '../../core/ai/helpers/response-timing';
+import {
+  missingApiKeyHealthResult,
+  probeProviderHealth,
+  type ProviderHealthResult,
+} from '../../core/ai/helpers/provider-health';
+
+// Groq lists available models over a lightweight GET endpoint. Health checks
+// hit this instead of generating a completion.
+const GROQ_MODELS_URL = 'https://api.groq.com/openai/v1/models';
 
 export class GroqProvider implements AIProvider {
   async chat(request: AIRequest): Promise<AIResponse> {
@@ -28,17 +38,19 @@ export class GroqProvider implements AIProvider {
     requireApiKey(apiKey, 'GROQ_API_KEY', 'groq');
 
     try {
-      const completion = (await groq.chat.completions.create({
-        model: request.model ?? 'llama-3.3-70b-versatile',
+      return await withResponseTiming(async () => {
+        const completion = (await groq.chat.completions.create({
+          model: request.model ?? 'llama-3.3-70b-versatile',
 
-        max_tokens: request.maxTokens ?? 1024,
-        messages: buildChatMessages(request.systemPrompt, request.userPrompt),
-      })) as OpenAICompatibleResponse;
+          max_tokens: request.maxTokens ?? 1024,
+          messages: buildChatMessages(request.systemPrompt, request.userPrompt),
+        })) as OpenAICompatibleResponse;
 
-      const content = extractOpenAICompatibleContent(completion);
-      const metadata = buildOpenAICompatibleMetadata('groq', completion);
+        const content = extractOpenAICompatibleContent(completion);
+        const metadata = buildOpenAICompatibleMetadata('groq', completion);
 
-      return assembleAIResponse(content, metadata);
+        return assembleAIResponse(content, metadata);
+      });
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message.toLowerCase();
@@ -105,5 +117,18 @@ export class GroqProvider implements AIProvider {
 
       throw error;
     }
+  }
+
+  async health(): Promise<ProviderHealthResult> {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return missingApiKeyHealthResult('groq', 'GROQ_API_KEY');
+    }
+
+    return probeProviderHealth({
+      provider: 'groq',
+      url: GROQ_MODELS_URL,
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
   }
 }
