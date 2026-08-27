@@ -1,10 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ProviderId } from '../../../../src/core/ai/provider.registry';
 import { ProviderError } from '../../../../src/core/ai/helpers/provider-error';
 import {
   withRetry,
   isRetriableError,
   computeBackoffDelay,
+  defaultSleep,
   DEFAULT_MAX_ATTEMPTS,
   DEFAULT_BASE_DELAY_MS,
   DEFAULT_MAX_DELAY_MS,
@@ -80,6 +81,52 @@ describe('computeBackoffDelay()', () => {
 
   it('never returns a negative delay', () => {
     expect(computeBackoffDelay(0, 0, 0)).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// defaultSleep
+// ---------------------------------------------------------------------------
+
+describe('defaultSleep()', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns a Promise that resolves exactly once via a single setTimeout', async () => {
+    vi.useFakeTimers();
+    const resolveSpy = vi.fn();
+    const promise = defaultSleep(50).then(resolveSpy);
+
+    // A delay is scheduled as exactly one timeout (never an interval).
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(50);
+    await promise;
+
+    // The promise fired once and left no lingering timer behind.
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('resolves with undefined after the delay', async () => {
+    vi.useFakeTimers();
+
+    const promise = defaultSleep(10);
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(10);
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  it('defaultSleep(0) schedules a single timeout and resolves', async () => {
+    vi.useFakeTimers();
+
+    const promise = defaultSleep(0).then(() => 'done');
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(promise).resolves.toBe('done');
   });
 });
 
