@@ -1,4 +1,7 @@
 import type { RepositoryProfile } from './profile';
+import type { ArchitectureDetectionResult } from './architecture';
+import type { DependencyIndex } from './dependencies';
+import type { PackageManagerDetectionResult } from './packageManager';
 
 function formatConfidence(confidence: number): string {
   if (!Number.isFinite(confidence) || confidence <= 0) return '0';
@@ -189,5 +192,77 @@ export function formatRepositoryProfile(profile: RepositoryProfile): string {
     ormSection,
     dependenciesSection.join('\n'),
   ].filter(Boolean).join('\n');
+}
+
+export function formatArchitecture(architecture: ArchitectureDetectionResult): string {
+  const lines = [
+    'Architecture',
+    `  Monorepo: ${architecture.monorepo ? 'Yes' : 'No'}`,
+    `  Workspace Manager: ${architecture.workspaceManager ?? 'Not detected'}`,
+    `  Confidence: ${formatConfidence(architecture.confidence)}`,
+    '  Evidence:',
+  ];
+
+  if (architecture.evidence.length > 0) {
+    lines.push(...architecture.evidence.filter(Boolean).map((evidence) => `    - ${evidence}`));
+  } else {
+    lines.push('    - Not detected');
+  }
+
+  const directories = Object.entries(architecture.directories)
+    .filter(([, present]) => present)
+    .map(([directory]) => directory);
+
+  lines.push('  Detected Directories:');
+  lines.push(directories.length > 0 ? `    ${directories.join(', ')}` : '    None');
+
+  return lines.join('\n');
+}
+
+export function formatDependencies(
+  dependencies: DependencyIndex,
+  packageManager: PackageManagerDetectionResult,
+): string {
+  const runtime = Object.keys(dependencies.dependencies).sort();
+  const development = Object.keys(dependencies.devDependencies).sort();
+  const runtimeLines = runtime.length > 0
+    ? runtime.map((dependency) => `    - ${dependency}`)
+    : ['    None'];
+  const developmentLines = development.length > 0
+    ? development.map((dependency) => `    - ${dependency}`)
+    : ['    None'];
+
+  return [
+    'Dependencies',
+    `  Runtime Count: ${runtime.length}`,
+    `  Development Count: ${development.length}`,
+    `  Total Count: ${dependencies.all.size}`,
+    `  Package Manager: ${packageManager.detected === 'unknown' ? 'Not detected' : packageManager.detected}`,
+    '  Runtime:',
+    ...runtimeLines,
+    '  Development:',
+    ...developmentLines,
+  ].join('\n');
+}
+
+export function formatRepositoryStats(profile: RepositoryProfile): string {
+  const languages = [profile.languages.primary, ...profile.languages.secondary].filter(Boolean);
+
+  return [
+    'Repository Statistics',
+    `  Files: ${profile.inventory.fileCount}`,
+    `  Total Size Bytes: ${profile.inventory.totalSizeBytes}`,
+    `  Primary Language: ${profile.languages.confidence > 0 ? profile.languages.primary : 'Not detected'}`,
+    `  Secondary Languages: ${languages.length > 1 ? languages.slice(1).join(', ') : 'None'}`,
+    `  Language Confidence: ${formatConfidence(profile.languages.confidence)}`,
+    `  Runtime Dependencies: ${Object.keys(profile.dependencies.dependencies).length}`,
+    `  Development Dependencies: ${Object.keys(profile.dependencies.devDependencies).length}`,
+    `  Total Dependencies: ${profile.dependencies.all.size}`,
+    `  Architecture: ${profile.architecture.confidence > 0
+      ? (profile.architecture.monorepo ? 'Monorepo' : 'Standard')
+      : 'Not detected'}`,
+    `  Framework: ${profile.frameworks.confidence > 0 ? profile.frameworks.primary : 'Not detected'}`,
+    `  Build Tool: ${profile.buildTools.primary ?? 'Not detected'}`,
+  ].join('\n');
 }
 

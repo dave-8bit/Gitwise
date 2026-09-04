@@ -9,6 +9,10 @@ import { reviewCommand } from './commands/review';
 import { changelogCommand } from './commands/changelog';
 import { explainCommand } from './commands/explain';
 import { inspectCommand } from './commands/inspect';
+import { contextCommand } from './commands/context';
+import { architectureCommand } from './commands/architecture';
+import { dependenciesCommand } from './commands/dependencies';
+import { statsCommand } from './commands/stats';
 
 const program = new Command();
 
@@ -55,6 +59,34 @@ program
     inspectCommand(rootPath);
   });
 
+program
+  .command('context [rootPath]')
+  .description('Show deterministic repository engineering context')
+  .action((rootPath: string | undefined) => {
+    contextCommand(rootPath);
+  });
+
+program
+  .command('architecture [rootPath]')
+  .description('Show detected repository architecture')
+  .action((rootPath: string | undefined) => {
+    architectureCommand(rootPath);
+  });
+
+program
+  .command('dependencies [rootPath]')
+  .description('Show repository dependencies')
+  .action((rootPath: string | undefined) => {
+    dependenciesCommand(rootPath);
+  });
+
+program
+  .command('stats [rootPath]')
+  .description('Show deterministic repository statistics')
+  .action((rootPath: string | undefined) => {
+    statsCommand(rootPath);
+  });
+
 program.parse(process.argv);
 
 
@@ -70,6 +102,11 @@ if (process.argv.slice(2).length === 0) {
   console.log(`  ${chalk.green('review')} — ${chalk.dim('Review staged changes before pushing')}`);
   console.log(`  ${chalk.green('changelog <from> <to>')} — ${chalk.dim('Generate a changelog between two refs')}`);
   console.log(`  ${chalk.green('explain <hash>')} — ${chalk.dim('Explain what a commit did in plain English')}`);
+  console.log(`  ${chalk.green('inspect [rootPath]')} — ${chalk.dim('Inspect a repository and print detected technologies')}`);
+  console.log(`  ${chalk.green('context [rootPath]')} — ${chalk.dim('Show deterministic repository engineering context')}`);
+  console.log(`  ${chalk.green('architecture [rootPath]')} — ${chalk.dim('Show detected repository architecture')}`);
+  console.log(`  ${chalk.green('dependencies [rootPath]')} — ${chalk.dim('Show repository dependencies')}`);
+  console.log(`  ${chalk.green('stats [rootPath]')} — ${chalk.dim('Show deterministic repository statistics')}`);
 
   console.log('');
   console.log(chalk.dim('Run gritch --help for more info'));
