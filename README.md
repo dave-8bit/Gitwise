@@ -1137,3 +1137,556 @@ Run tests:
 npm test
 
 Build:
+Build:
+
+npm run build
+
+TypeScript checking:
+
+npx tsc --noEmit
+
+Run Gritch locally after building:
+
+node dist/index.js
+Project Structure
+
+The project is organized around separation of concerns.
+
+src/
+│
+├── commands/
+│   ├── changelog.ts
+│   ├── commit.ts
+│   ├── explain.ts
+│   ├── inspect/
+│   └── review.ts
+│
+├── core/
+│   ├── ai/
+│   │   ├── helpers/
+│   │   ├── providers/
+│   │   ├── ai.service.ts
+│   │   ├── provider.orchestrator.ts
+│   │   ├── provider.registry.ts
+│   │   └── ai.types.ts
+│   │
+│   └── config/
+│
+├── providers/
+│   ├── groq.provider.ts
+│   ├── gemini.provider.ts
+│   ├── openrouter.provider.ts
+│   └── ollama.provider.ts
+│
+└── utils/
+
+Tests mirror the architectural boundaries:
+
+test/
+├── commands/
+├── core/
+├── inspect/
+└── providers/
+
+The exact structure may evolve as the architecture grows.
+
+Roadmap
+
+Gritch is intentionally being developed in milestones.
+
+Milestone 1 — Foundation
+Status: Complete
+
+Implemented:
+
+CLI foundation
+Commander integration
+AI abstraction
+configuration loading
+Git utilities
+core commands
+testing infrastructure
+Milestone 2 — Repository Intelligence
+Status: Complete
+
+Implemented:
+
+repository scanner
+folder analysis
+Git metadata
+project statistics
+language detection
+framework detection
+package manager detection
+build tool detection
+database detection
+ORM detection
+testing detection
+deployment detection
+AI framework detection
+monorepo detection
+workspace detection
+architecture analysis
+entry-point detection
+configuration discovery
+environment discovery
+API route discovery
+repository health
+Milestone 3 — AI Repository Intelligence
+Status: Complete
+
+Implemented:
+
+repository-aware commit generation
+repository-aware code reviews
+commit explanations
+changelog generation
+shared AI service
+provider registry
+request builder
+shared response helpers
+Milestone 4 — Local AI & Provider Ecosystem
+Status: In Progress
+
+The objective of Milestone 4 is to make Gritch reliable across multiple AI environments.
+
+Phase 4.1 — Ollama Provider
+Status: Complete
+
+Implemented:
+
+Ollama provider
+data-driven provider registry
+provider selection
+GRITCH_PROVIDER
+GRITCH_MODEL
+shared JSON response parsing
+fenced JSON parsing
+local model validation
+runtime validation with qwen2.5-coder:1.5b
+Phase 4.2 — Provider Reliability
+Status: In Progress
+
+Implemented:
+
+shared timeout handling
+runtime provider orchestration
+provider fallback
+transient failure classification
+canonical provider errors
+provider-specific error normalization
+provider contract tests
+security regression testing around command execution
+
+Continuing areas include:
+
+provider health checks
+response timing
+retry/backoff strategy
+capability representation
+additional shared provider behavior
+reliability metrics
+
+The exact sequencing may evolve based on implementation findings and real-world testing.
+
+Milestone 5 — LangChain + Persistent Repository Memory
+Status: Planned
+
+Milestone 5 moves Gritch from repository-aware AI toward repository memory.
+
+Planned capabilities include:
+
+LangChain Integration
+
+LangChain will provide infrastructure for:
+
+structured AI workflows
+reusable chains
+retrieval workflows
+contextual AI operations
+future agent capabilities
+SQLite Repository Memory
+
+Gritch will eventually maintain persistent local repository information.
+
+Potential stored information includes:
+
+repository metadata
+architecture information
+repository indexing information
+previous AI interactions
+project context
+cached analysis
+architectural decisions
+useful historical context
+
+SQLite is intended to provide lightweight persistent local storage without requiring an external database service.
+
+Repository Context
+
+Future Gritch sessions should not need to rediscover everything from scratch.
+
+The goal is:
+
+Repository
+     ↓
+Index
+     ↓
+Persistent Context
+     ↓
+AI
+     ↓
+Improved Understanding
+Conversation Context
+
+Future versions may support persistent conversational context so developers can interact with Gritch across multiple tasks without losing relevant repository information.
+
+Milestone 6 — VS Code Extension
+Status: Planned
+
+Gritch will eventually expand beyond the terminal.
+
+Planned VS Code capabilities include:
+
+VS Code extension
+sidebar interface
+repository insights
+interactive AI
+command palette integration
+Git-aware AI actions
+repository-aware explanations
+AI code review
+contextual developer workflows
+
+The CLI remains the architectural foundation.
+
+The extension should consume the same core intelligence rather than becoming a completely separate implementation.
+
+Future Architecture
+
+The long-term architecture is expected to evolve toward:
+
+                         Developer
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+             CLI                     VS Code
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                            ▼
+                    Gritch Application
+                            │
+                            ▼
+                  Repository Intelligence
+                            │
+                            ▼
+                    Repository Index
+                            │
+                            ▼
+                  Persistent Memory
+                       SQLite
+                            │
+                            ▼
+                   Context Manager
+                            │
+                            ▼
+                     AI Orchestrator
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+           Groq          Gemini        OpenRouter
+             │              │              │
+             └──────────────┼──────────────┘
+                            │
+                          Ollama
+                            │
+                            ▼
+                     AI Models / Agents
+
+The architecture is intentionally designed so the user-facing interface can evolve without rewriting the underlying repository and AI infrastructure.
+
+Future Capabilities
+
+The long-term Gritch platform may provide capabilities such as:
+
+Repository Understanding
+"Explain how authentication works in this repository."
+
+Gritch should be able to combine:
+
+repository structure
+source files
+dependencies
+architecture
+Git history
+persistent context
+
+to answer the question.
+
+Change Intelligence
+"Review everything changed since the last release."
+
+Gritch could combine:
+
+Git history
+repository architecture
+previous releases
+code changes
+AI analysis
+Architecture Intelligence
+"Where should I add the new payment service?"
+
+Instead of blindly generating code, Gritch should eventually understand the existing architecture and identify appropriate locations.
+
+Persistent Engineering Memory
+
+Over time, Gritch should remember useful repository-level information such as:
+
+Architecture decisions
+Coding conventions
+Important services
+Database structure
+Common workflows
+Previous explanations
+Repository history
+
+This moves Gritch toward an AI system that understands a project over time rather than treating every invocation as a completely new conversation.
+
+Production Direction
+
+Gritch is being developed with production-oriented engineering constraints.
+
+The project prioritizes:
+
+deterministic architecture
+provider abstraction
+graceful provider failure
+local AI support
+safe process execution
+structured errors
+automated testing
+backwards compatibility
+explicit configuration
+minimal unnecessary dependencies
+repository-aware context
+maintainable TypeScript
+clear separation of concerns
+
+The goal is not to make Gritch a demo that happens to call an LLM.
+
+The goal is to build infrastructure that can support real developer workflows.
+
+What Gritch Is Not
+
+Gritch is not intended to be:
+
+merely an AI commit-message generator
+permanently tied to one AI provider
+a wrapper around a single model
+dependent on cloud AI for every operation
+an IDE-only assistant
+an autonomous coding agent without safeguards
+
+Gritch is intended to become the infrastructure connecting:
+
+Git
++
+Repository Intelligence
++
+AI Providers
++
+Local Models
++
+Persistent Memory
++
+Developer Interfaces
+Design Principles
+Provider Agnostic
+
+Commands communicate with the AI service rather than individual providers.
+
+Thin Providers
+
+Providers should primarily:
+
+construct requests
+communicate with APIs
+parse responses
+normalize provider-specific behavior
+
+Business logic belongs above the provider layer.
+
+Shared Utilities
+
+Repeated behavior should be implemented through shared abstractions.
+
+Explicit Failure Handling
+
+Errors should be classified and handled intentionally.
+
+Do not silently hide provider failures.
+
+Security by Design
+
+Untrusted AI output must never be treated as executable shell syntax.
+
+Backward Compatibility
+
+Existing functionality should continue to work as the project evolves.
+
+Small Focused Changes
+
+Each implementation phase should solve a defined problem.
+
+Unrelated refactors should not be mixed into feature work.
+
+Tests Are Part of the Feature
+
+A feature is incomplete without appropriate tests.
+
+Documentation Is Part of the Architecture
+
+The roadmap, implementation guide, and README should accurately represent the actual state of the system.
+
+Contributing
+
+Contributions are welcome.
+
+Areas where contributions may be useful include:
+
+new AI providers
+repository detectors
+AI integrations
+provider reliability
+testing
+security
+performance
+Git workflows
+CLI improvements
+documentation
+VS Code integration
+local AI support
+
+Before making significant architectural changes, open an issue or discussion to establish the intended direction.
+
+Pull requests should:
+
+maintain existing architecture
+include tests where appropriate
+avoid unrelated changes
+preserve backward compatibility
+pass the build
+pass the test suite
+Development Workflow
+
+Gritch development follows a structured workflow:
+
+1. Inspect
+      ↓
+2. Understand
+      ↓
+3. Plan
+      ↓
+4. Implement
+      ↓
+5. Test
+      ↓
+6. Build
+      ↓
+7. Review
+      ↓
+8. Commit
+      ↓
+9. Push
+
+The project strongly favors evidence over assumptions.
+
+A feature is not considered complete merely because an AI agent claims that it works.
+
+Definition of Done
+
+A phase is complete only when:
+
+implementation is complete
+relevant tests exist
+tests pass
+build succeeds
+runtime behavior is verified where appropriate
+documentation is updated
+security implications are considered
+changes are committed
+changes are pushed
+working tree is clean
+Project Philosophy
+
+Gritch is being built around a simple idea:
+
+AI should understand the engineering environment before it tries to help engineer it.
+
+A repository is more than a Git diff.
+
+It contains:
+
+architecture
+dependencies
+conventions
+history
+tooling
+configuration
+infrastructure
+decisions
+patterns
+
+Gritch's job is to progressively make that information useful to AI.
+
+The current CLI is only the beginning.
+
+License
+
+MIT License.
+
+See LICENSE for details.
+
+Author
+
+Developed by Dave Craft.
+
+GitHub:
+
+https://github.com/dave-8bit/Gritch
+
+npm:
+
+https://www.npmjs.com/package/gritch
+
+Project Status
+
+Active Development
+
+Gritch is currently evolving through Milestone 4 toward a broader AI engineering platform.
+
+Current verified baseline:
+
+Milestones 1–3        Complete
+Milestone 4           In Progress
+Ollama Support        Complete
+Provider Orchestration Complete
+Provider Error System Complete
+Security Remediation  Complete
+
+
+Tests                  246 passing
+Test Files             28
+Build                  Passing
+Repository              Clean
+
+The architecture will continue to evolve as Gritch moves toward persistent repository memory, deeper AI orchestration, and IDE integration.
+
+<div align="center">
+Gritch
+
+Understand the repository. Then let AI help you build it.
+
+</div> ```
+

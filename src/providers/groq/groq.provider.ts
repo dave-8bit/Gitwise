@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk';
 
 import type { AIProvider } from '../../core/ai/ai.provider';
+import type { ProviderCapabilities } from '../../core/ai/ai.capabilities';
 import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 
 import { requireApiKey } from '../../core/ai/helpers/api-key';
@@ -28,6 +29,8 @@ import {
 const GROQ_MODELS_URL = 'https://api.groq.com/openai/v1/models';
 
 export class GroqProvider implements AIProvider {
+  readonly capabilities: ProviderCapabilities = { chat: 'supported' };
+
   async chat(request: AIRequest): Promise<AIResponse> {
     const apiKey = process.env.GROQ_API_KEY;
     const groq = new Groq({

@@ -1,4 +1,5 @@
 import type { AIProvider } from '../../core/ai/ai.provider';
+import type { ProviderCapabilities } from '../../core/ai/ai.capabilities';
 import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 
 import { requireApiKey } from '../../core/ai/helpers/api-key';
@@ -27,6 +28,8 @@ type GeminiChatResponse = {
 };
 
 export class GeminiProvider implements AIProvider {
+  readonly capabilities: ProviderCapabilities = { chat: 'supported' };
+
   async chat(request: AIRequest): Promise<AIResponse> {
     const key = requireApiKey(process.env.GEMINI_API_KEY, 'GEMINI_API_KEY', 'gemini');
 

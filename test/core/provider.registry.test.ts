@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../src/providers/groq/groq.provider', () => {
   class GroqProviderMock {
     public readonly __mock = 'groq';
+    public readonly capabilities = { chat: 'supported' as const };
   }
   return { GroqProvider: GroqProviderMock };
 });
@@ -11,6 +12,7 @@ vi.mock('../../src/providers/groq/groq.provider', () => {
 vi.mock('../../src/providers/openrouter/openrouter.provider', () => {
   class OpenRouterProviderMock {
     public readonly __mock = 'openrouter';
+    public readonly capabilities = { chat: 'supported' as const };
   }
   return { OpenRouterProvider: OpenRouterProviderMock };
 });
@@ -18,6 +20,7 @@ vi.mock('../../src/providers/openrouter/openrouter.provider', () => {
 vi.mock('../../src/providers/ollama/ollama.provider', () => {
   class OllamaProviderMock {
     public readonly __mock = 'ollama';
+    public readonly capabilities = { chat: 'supported' as const };
   }
   return { OllamaProvider: OllamaProviderMock };
 });
@@ -189,6 +192,25 @@ describe('Provider registry', () => {
 
     expect(mod.getActiveProviderId()).toBe('ollama');
     expect((mod.getActiveProvider() as any).__mock).toBe('ollama');
+  });
+
+  it('returns capabilities for a provider ID', async () => {
+    process.env.GRITCH_PROVIDER = 'groq';
+    mockLoadConfig.mockReturnValue({ provider: 'groq' });
+
+    const mod = await importRegistry();
+
+    expect(mod.getProviderCapabilities('groq')).toEqual({ chat: 'supported' });
+  });
+
+  it('uses the existing default-provider fallback for an unknown provider ID', async () => {
+    mockLoadConfig.mockReturnValue({ provider: 'groq' });
+
+    const mod = await importRegistry();
+
+    expect(mod.getProviderCapabilities('not-a-provider' as Provider)).toEqual({
+      chat: 'supported',
+    });
   });
 });
 

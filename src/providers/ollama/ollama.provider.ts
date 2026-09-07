@@ -1,4 +1,5 @@
 import type { AIProvider } from '../../core/ai/ai.provider';
+import type { ProviderCapabilities } from '../../core/ai/ai.capabilities';
 import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 
 import { assembleAIResponse } from '../../core/ai/helpers/response';
@@ -21,6 +22,8 @@ import {
 const OLLAMA_BASE_URL = 'http://localhost:11434';
 
 export class OllamaProvider implements AIProvider {
+  readonly capabilities: ProviderCapabilities = { chat: 'supported' };
+
   async chat(request: AIRequest): Promise<AIResponse> {
     try {
       return await withResponseTiming(async () => {

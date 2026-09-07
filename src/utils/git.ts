@@ -1,5 +1,7 @@
 import simpleGit from 'simple-git';
 
+import { resolveRepoRoot } from '../inspect/root';
+
 const git = simpleGit();
 
 export async function getStagedDiff(): Promise<string> {
@@ -8,6 +10,18 @@ export async function getStagedDiff(): Promise<string> {
     throw new Error('No staged changes found. Stage your changes with git add first.');
   }
   return diff;
+}
+
+/** Returns the current HEAD SHA, or undefined when no usable HEAD exists. */
+export async function getCurrentHeadRevision(repositoryPath?: string): Promise<string | undefined> {
+  const repositoryRoot = resolveRepoRoot(repositoryPath).root;
+
+  try {
+    const revision = (await simpleGit(repositoryRoot).revparse(['HEAD'])).trim();
+    return revision || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getCommitDiff(hash: string): Promise<string> {

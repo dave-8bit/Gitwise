@@ -1,4 +1,5 @@
 import type { AIProvider } from '../../core/ai/ai.provider';
+import type { ProviderCapabilities } from '../../core/ai/ai.capabilities';
 import type { AIRequest, AIResponse } from '../../core/ai/ai.types';
 
 import { requireApiKey } from '../../core/ai/helpers/api-key';
@@ -21,6 +22,8 @@ import {
 // OpenRouter follows an OpenAI-compatible chat API.
 // We use the minimal required surface: system+user prompts.
 export class OpenRouterProvider implements AIProvider {
+  readonly capabilities: ProviderCapabilities = { chat: 'supported' };
+
   async chat(request: AIRequest): Promise<AIResponse> {
     const key = requireApiKey(process.env.OPENROUTER_API_KEY, 'OPENROUTER_API_KEY', 'openrouter');
 

@@ -1,4 +1,5 @@
 import type { AIProvider } from './ai.provider';
+import type { ProviderCapabilities } from './ai.capabilities';
 import { GroqProvider } from '../../providers/groq/groq.provider';
 import { OpenRouterProvider } from '../../providers/openrouter/openrouter.provider';
 import { GeminiProvider } from '../../providers/gemini/gemini.provider';
@@ -71,6 +72,11 @@ export function getActiveProvider(): AIProvider {
 
 export function getProviderById(id: ProviderId): AIProvider {
   return providers[id] ?? providers[defaultProviderId];
+}
+
+/** Returns static capability declarations using the registry's existing fallback semantics. */
+export function getProviderCapabilities(id: ProviderId): ProviderCapabilities | undefined {
+  return getProviderById(id).capabilities;
 }
 
 
