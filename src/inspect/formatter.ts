@@ -194,6 +194,116 @@ export function formatRepositoryProfile(profile: RepositoryProfile): string {
   ].filter(Boolean).join('\n');
 }
 
+function formatDoctorDetector(
+  label: string,
+  primary: string | undefined,
+  secondary: string[],
+  confidence: number,
+  evidence: string[],
+): string[] {
+  const lines = [`  ${label}:`];
+  if (primary === undefined) {
+    lines.push('    Not detected');
+  } else {
+    lines.push(`    Primary: ${primary}`);
+    if (secondary.length > 0) lines.push(`    Secondary: ${secondary.join(', ')}`);
+  }
+  lines.push(`    Confidence: ${formatConfidence(confidence)}`);
+  lines.push('    Evidence:');
+  const evidenceLines = evidence.filter(Boolean);
+  lines.push(...(evidenceLines.length > 0 ? evidenceLines.map((item) => `      - ${item}`) : ['      - Not detected']));
+  return lines;
+}
+
+export function formatDoctor(profile: RepositoryProfile): string {
+  const runtimeDependencies = Object.keys(profile.dependencies.dependencies).sort();
+  const developmentDependencies = Object.keys(profile.dependencies.devDependencies).sort();
+  const allDependencies = Array.from(profile.dependencies.all).sort();
+  const directories = Object.entries(profile.architecture.directories)
+    .filter(([, present]) => present)
+    .map(([directory]) => directory);
+
+  const toolingLines = [
+    'Tooling',
+    ...formatDoctorDetector('Languages', profile.languages.confidence > 0 ? profile.languages.primary : undefined, profile.languages.secondary, profile.languages.confidence, profile.languages.evidence),
+    ...formatDoctorDetector('Frameworks', profile.frameworks.confidence > 0 ? profile.frameworks.primary : undefined, profile.frameworks.secondary, profile.frameworks.confidence, profile.frameworks.evidence),
+    ...formatDoctorDetector('Build Tools', profile.buildTools.primary, profile.buildTools.secondary, profile.buildTools.confidence, profile.buildTools.evidence),
+    ...formatDoctorDetector('Package Manager', profile.packageManager.detected === 'unknown' ? undefined : profile.packageManager.detected, [], profile.packageManager.confidence, profile.packageManager.evidence),
+    ...formatDoctorDetector('Testing', profile.testing.primary, profile.testing.secondary, profile.testing.confidence, profile.testing.evidence),
+    ...formatDoctorDetector('Linting', profile.linting.primary, profile.linting.secondary, profile.linting.confidence, profile.linting.evidence),
+    ...formatDoctorDetector('Formatting', profile.formatting.primary, profile.formatting.secondary, profile.formatting.confidence, profile.formatting.evidence),
+    ...formatDoctorDetector('Database', profile.database.primary, profile.database.secondary, profile.database.confidence, profile.database.evidence),
+    ...formatDoctorDetector('ORM', profile.orm.primary, profile.orm.secondary, profile.orm.confidence, profile.orm.evidence),
+  ];
+
+  const recommendationLines = profile.health.recommendations.length > 0
+    ? profile.health.recommendations.map((recommendation) => `  - ${recommendation}`)
+    : ['  None'];
+
+  const dependencyLines = [
+    'Dependencies',
+    `  Runtime Count: ${runtimeDependencies.length}`,
+    `  Development Count: ${developmentDependencies.length}`,
+    `  Total Count: ${allDependencies.length}`,
+    `  Package Manager: ${profile.packageManager.detected === 'unknown' ? 'Not detected' : profile.packageManager.detected}`,
+    '  Runtime:',
+    ...(runtimeDependencies.length > 0 ? runtimeDependencies.map((dependency) => `    - ${dependency}`) : ['    None']),
+    '  Development:',
+    ...(developmentDependencies.length > 0 ? developmentDependencies.map((dependency) => `    - ${dependency}`) : ['    None']),
+  ];
+
+  const evidenceLines = [
+    'Evidence',
+    `  Root: ${profile.rootEvidence ?? 'Not detected'}`,
+    '  Health:',
+    ...(profile.health.evidence.length > 0 ? profile.health.evidence.map((item) => `    - ${item}`) : ['    - Not detected']),
+    '  Detectors:',
+    ...[
+      ...profile.languages.evidence,
+      ...profile.frameworks.evidence,
+      ...profile.buildTools.evidence,
+      ...profile.packageManager.evidence,
+      ...profile.testing.evidence,
+      ...profile.linting.evidence,
+      ...profile.formatting.evidence,
+      ...profile.database.evidence,
+      ...profile.orm.evidence,
+      ...profile.architecture.evidence,
+    ].filter(Boolean).map((item) => `    - ${item}`),
+  ];
+
+  return [
+    'Repository',
+    `  Root: ${profile.root}`,
+    `  Root Evidence: ${profile.rootEvidence ?? 'Not detected'}`,
+    '',
+    'Health',
+    `  Score: ${profile.health.score}`,
+    `  Grade: ${profile.health.grade}`,
+    `  Present: ${profile.health.present.length > 0 ? profile.health.present.join(', ') : 'None'}`,
+    `  Missing: ${profile.health.missing.length > 0 ? profile.health.missing.join(', ') : 'None'}`,
+    '',
+    'Recommendations',
+    ...recommendationLines,
+    '',
+    ...toolingLines,
+    '',
+    'Architecture',
+    `  Monorepo: ${profile.architecture.monorepo ? 'Yes' : 'No'}`,
+    `  Workspace Manager: ${profile.architecture.workspaceManager ?? 'Not detected'}`,
+    `  Confidence: ${formatConfidence(profile.architecture.confidence)}`,
+    `  Directories: ${directories.length > 0 ? directories.join(', ') : 'None'}`,
+    '',
+    ...dependencyLines,
+    '',
+    'Inventory',
+    `  Files: ${profile.inventory.fileCount}`,
+    `  Total Size Bytes: ${profile.inventory.totalSizeBytes}`,
+    '',
+    ...evidenceLines,
+  ].join('\n');
+}
+
 export function formatArchitecture(architecture: ArchitectureDetectionResult): string {
   const lines = [
     'Architecture',
@@ -265,4 +375,3 @@ export function formatRepositoryStats(profile: RepositoryProfile): string {
     `  Build Tool: ${profile.buildTools.primary ?? 'Not detected'}`,
   ].join('\n');
 }
-

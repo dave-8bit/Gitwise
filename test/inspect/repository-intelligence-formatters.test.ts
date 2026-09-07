@@ -4,6 +4,7 @@ import {
   formatArchitecture,
   formatDependencies,
   formatRepositoryStats,
+  formatDoctor,
 } from '../../src/inspect/formatter';
 import { makeRepositoryProfile } from '../helpers/repository-profile';
 
@@ -91,5 +92,56 @@ describe('repository intelligence formatters', () => {
     expect(output).not.toContain('LOC');
     expect(output).not.toContain('Source Files');
     expect(output).not.toContain('Test Files');
+  });
+
+  it('formats a populated doctor report with deterministic sections and evidence', () => {
+    const output = formatDoctor(makeRepositoryProfile());
+
+    expect(output).toContain('Repository');
+    expect(output).toContain('Health');
+    expect(output).toContain('Score: 80');
+    expect(output).toContain('Grade: Good');
+    expect(output).toContain('Recommendations\n  None');
+    expect(output).toContain('Tooling');
+    expect(output).toContain('Testing:\n    Primary: Vitest');
+    expect(output).toContain('Architecture');
+    expect(output).toContain('Monorepo: Yes');
+    expect(output).toContain('Dependencies');
+    expect(output).toContain('Runtime Count: 2');
+    expect(output).toContain('Development Count: 2');
+    expect(output).toContain('    - chalk\n    - express');
+    expect(output).toContain('Inventory');
+    expect(output).toContain('Files: 12');
+    expect(output).toContain('Evidence');
+    expect(output).toContain('vitest.config.ts');
+  });
+
+  it('formats missing detector values and health recommendations without inventing recommendations', () => {
+    const profile = makeRepositoryProfile();
+    profile.testing = { primary: undefined, secondary: [], confidence: 0, evidence: ['No testing framework evidence found'] };
+    profile.linting = { primary: undefined, secondary: [], confidence: 0, evidence: ['No linting tool evidence found'] };
+    profile.formatting = { primary: undefined, secondary: [], confidence: 0, evidence: ['No formatting tool evidence found'] };
+    profile.health.recommendations = ['Add a README.md.'];
+
+    const output = formatDoctor(profile);
+
+    expect(output).toContain('Testing:\n    Not detected');
+    expect(output).toContain('Linting:\n    Not detected');
+    expect(output).toContain('Recommendations\n  - Add a README.md.');
+    expect(output).not.toContain('Run ESLint');
+    expect(output).not.toContain('Run tests');
+  });
+
+  it('formats an empty dependency state', () => {
+    const profile = makeRepositoryProfile();
+    profile.dependencies = { dependencies: {}, devDependencies: {}, all: new Set() };
+
+    const output = formatDoctor(profile);
+
+    expect(output).toContain('Runtime Count: 0');
+    expect(output).toContain('Development Count: 0');
+    expect(output).toContain('Total Count: 0');
+    expect(output).toContain('  Runtime:\n    None');
+    expect(output).toContain('  Development:\n    None');
   });
 });

@@ -13,6 +13,7 @@ import { contextCommand } from './commands/context';
 import { architectureCommand } from './commands/architecture';
 import { dependenciesCommand } from './commands/dependencies';
 import { statsCommand } from './commands/stats';
+import { doctorCommand } from './commands/doctor';
 
 const program = new Command();
 
@@ -87,6 +88,13 @@ program
     statsCommand(rootPath);
   });
 
+program
+  .command('doctor [rootPath]')
+  .description('Show deterministic repository health and detected tooling')
+  .action((rootPath: string | undefined) => {
+    doctorCommand(rootPath);
+  });
+
 program.parse(process.argv);
 
 
@@ -107,9 +115,9 @@ if (process.argv.slice(2).length === 0) {
   console.log(`  ${chalk.green('architecture [rootPath]')} — ${chalk.dim('Show detected repository architecture')}`);
   console.log(`  ${chalk.green('dependencies [rootPath]')} — ${chalk.dim('Show repository dependencies')}`);
   console.log(`  ${chalk.green('stats [rootPath]')} — ${chalk.dim('Show deterministic repository statistics')}`);
+  console.log(`  ${chalk.green('doctor [rootPath]')} — ${chalk.dim('Show deterministic repository health and detected tooling')}`);
 
   console.log('');
   console.log(chalk.dim('Run gritch --help for more info'));
 }
-
 

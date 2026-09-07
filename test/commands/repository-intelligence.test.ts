@@ -11,6 +11,7 @@ import { contextCommand } from '../../src/commands/context';
 import { architectureCommand } from '../../src/commands/architecture';
 import { dependenciesCommand } from '../../src/commands/dependencies';
 import { statsCommand } from '../../src/commands/stats';
+import { doctorCommand } from '../../src/commands/doctor';
 
 const inspectRepositoryMock = vi.mocked(inspectRepository);
 
@@ -68,5 +69,28 @@ describe('repository intelligence commands', () => {
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Files: 12'));
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Total Dependencies: 4'));
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Build Tool: tsup'));
+  });
+
+  it('doctor prints the live profile and respects an explicit rootPath', () => {
+    doctorCommand('C:/repo');
+
+    expect(inspectRepositoryMock).toHaveBeenCalledWith('C:/repo');
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Health'));
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Score: 80'));
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Vitest'));
+  });
+
+  it('doctor forwards an omitted rootPath as undefined', () => {
+    doctorCommand();
+
+    expect(inspectRepositoryMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it('doctor surfaces inspection failures', () => {
+    inspectRepositoryMock.mockImplementation(() => {
+      throw new Error('inspection failed');
+    });
+
+    expect(() => doctorCommand()).toThrow('inspection failed');
   });
 });
