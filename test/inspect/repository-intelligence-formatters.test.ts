@@ -5,6 +5,7 @@ import {
   formatDependencies,
   formatRepositoryStats,
   formatDoctor,
+  formatRepositoryTree,
 } from '../../src/inspect/formatter';
 import { makeRepositoryProfile } from '../helpers/repository-profile';
 
@@ -143,5 +144,55 @@ describe('repository intelligence formatters', () => {
     expect(output).toContain('Total Count: 0');
     expect(output).toContain('  Runtime:\n    None');
     expect(output).toContain('  Development:\n    None');
+  });
+
+  it('formats a deterministic repository tree with depth-limited descendants', () => {
+    const tree = {
+      children: [
+        {
+          name: 'src',
+          kind: 'directory' as const,
+          children: [
+            {
+              name: 'commands',
+              kind: 'directory' as const,
+              children: [
+                {
+                  name: 'doctor.ts',
+                  kind: 'file' as const,
+                  children: [],
+                },
+                {
+                  name: 'nested',
+                  kind: 'directory' as const,
+                  children: [{ name: 'hidden.ts', kind: 'file' as const, children: [] }],
+                },
+              ],
+            },
+            { name: 'index.ts', kind: 'file' as const, children: [] },
+          ],
+        },
+        { name: 'README.md', kind: 'file' as const, children: [] },
+      ],
+    };
+
+    const output = formatRepositoryTree('C:/repo', tree, 3);
+
+    expect(output).toContain('Repository: C:/repo');
+    expect(output).toContain('Tree:');
+    expect(output).toContain('├── src/');
+    expect(output).toContain('│   ├── commands/');
+    expect(output).toContain('│   │   ├── doctor.ts');
+    expect(output).toContain('│   │   └── nested/');
+    expect(output).toContain('│   │       └── ...');
+    expect(output).toContain('└── README.md');
+    expect(output).not.toContain('C:/repo/src');
+    expect(formatRepositoryTree('C:/repo', tree, 3)).toBe(output);
+  });
+
+  it('formats an empty tree', () => {
+    expect(formatRepositoryTree('C:/repo', { children: [] }, 3)).toBe(
+      'Repository: C:/repo\n\nTree:\n(empty)',
+    );
   });
 });

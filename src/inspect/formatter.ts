@@ -2,6 +2,7 @@ import type { RepositoryProfile } from './profile';
 import type { ArchitectureDetectionResult } from './architecture';
 import type { DependencyIndex } from './dependencies';
 import type { PackageManagerDetectionResult } from './packageManager';
+import type { RepositoryTree, RepositoryTreeNode } from './tree';
 
 function formatConfidence(confidence: number): string {
   if (!Number.isFinite(confidence) || confidence <= 0) return '0';
@@ -13,6 +14,36 @@ function formatEvidence(evidence: string[] | undefined): string {
   const lines = (evidence ?? []).filter(Boolean).map((e) => `    - ${e}`);
   if (lines.length === 0) return `  Evidence:\n    - Not detected`;
   return `  Evidence:\n${lines.join('\n')}`;
+}
+
+function formatTreeNode(node: RepositoryTreeNode, depth: number, maxDepth: number, prefix: string, isLast: boolean): string[] {
+  const marker = isLast ? '└── ' : '├── ';
+  const lines = [`${prefix}${marker}${node.kind === 'directory' ? `${node.name}/` : node.name}`];
+  if (node.kind !== 'directory' || depth >= maxDepth) {
+    if (node.kind === 'directory' && node.children.length > 0 && depth >= maxDepth) {
+      lines.push(`${prefix}${isLast ? '    ' : '│   '}└── ...`);
+    }
+    return lines;
+  }
+
+  const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+  node.children.forEach((child, index) => {
+    lines.push(...formatTreeNode(child, depth + 1, maxDepth, childPrefix, index === node.children.length - 1));
+  });
+  return lines;
+}
+
+export function formatRepositoryTree(root: string, tree: RepositoryTree, displayDepth: number): string {
+  const depth = Math.max(0, Math.floor(displayDepth));
+  const lines = [`Repository: ${root}`, '', 'Tree:'];
+  if (tree.children.length === 0 || depth === 0) {
+    lines.push('(empty)');
+  } else {
+    tree.children.forEach((node, index) => {
+      lines.push(...formatTreeNode(node, 1, depth, '', index === tree.children.length - 1));
+    });
+  }
+  return lines.join('\n');
 }
 
 function formatDetectorSection(opts: {
